@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Feather } from '@expo/vector-icons';
 import Animated, {
@@ -16,6 +16,7 @@ import { spacing } from '../../styles/spacing';
 import { typography } from '../../styles/typography';
 
 const CameraPredictScreen = ({ navigation }) => {
+  // -------- HOOKS MUST ALWAYS RUN ON TOP --------
   const { theme } = useApp();
   const [permission, requestPermission] = useCameraPermissions();
   const [isActive, setIsActive] = useState(false);
@@ -24,8 +25,8 @@ const CameraPredictScreen = ({ navigation }) => {
 
   const borderOpacity = useSharedValue(0.5);
 
+  // Border animation
   useEffect(() => {
-    // Animate scanning border
     borderOpacity.value = withRepeat(
       withSequence(
         withTiming(1, { duration: 1000 }),
@@ -40,33 +41,58 @@ const CameraPredictScreen = ({ navigation }) => {
     opacity: borderOpacity.value,
   }));
 
+  // Auto-activate camera
   useEffect(() => {
-    if (permission?.granted) {
-      setIsActive(true);
-    }
+    if (permission?.granted) setIsActive(true);
   }, [permission]);
 
+  // Fake prediction generator
+  const handleStartPrediction = () => {
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+    const randomLetter = letters[Math.floor(Math.random() * letters.length)];
+    const confidence = Math.random() * 0.3 + 0.7;
+
+    setPrediction({
+      letter: randomLetter,
+      confidence: confidence,
+      timestamp: Date.now(),
+    });
+
+    setTimeout(handleStartPrediction, 2000);
+  };
+
+  useEffect(() => {
+    if (isActive) {
+      handleStartPrediction();
+    }
+  }, [isActive]);
+
+  // -------- UI HANDLING WITHOUT RETURNING BEFORE HOOKS --------
+  let screenContent = null;
+
+  // 1. Permission is still loading
   if (!permission) {
-    return <View style={styles.container} />;
+    screenContent = <View style={styles.container} />;
   }
 
-  if (!permission.granted) {
-    return (
+  // 2. Permission denied
+  else if (!permission.granted) {
+    screenContent = (
       <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.permissionContainer}>
           <View style={[styles.iconCircle, { backgroundColor: colors.primary.pink + '20' }]}>
             <Feather name="camera-off" size={40} color={colors.primary.pink} />
           </View>
+
           <Text style={[styles.permissionTitle, { color: theme.colors.text }]}>
             Camera Permission Required
           </Text>
+
           <Text style={[styles.permissionText, { color: theme.colors.textSecondary }]}>
-            We need access to your camera to predict sign language gestures in real-time
+            We need access to your camera to predict sign language gestures
           </Text>
-          <TouchableOpacity
-            onPress={requestPermission}
-            style={styles.permissionButton}
-          >
+
+          <TouchableOpacity onPress={requestPermission} style={styles.permissionButton}>
             <LinearGradient
               colors={colors.gradients.pink}
               start={{ x: 0, y: 0 }}
@@ -81,42 +107,13 @@ const CameraPredictScreen = ({ navigation }) => {
     );
   }
 
-  const handleStartPrediction = () => {
-    // Simulate prediction - replace with actual ML model
-    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
-    const randomLetter = letters[Math.floor(Math.random() * letters.length)];
-    const confidence = Math.random() * 0.3 + 0.7; // 0.7 to 1.0
-
-    setPrediction({
-      letter: randomLetter,
-      confidence: confidence,
-      timestamp: Date.now(),
-    });
-
-    // Update prediction every 2 seconds
-    setTimeout(handleStartPrediction, 2000);
-  };
-
-  useEffect(() => {
-    if (isActive) {
-      handleStartPrediction();
-    }
-  }, [isActive]);
-
-  return (
-    <View style={styles.container}>
-      {/* Camera View */}
-      <CameraView
-        style={styles.camera}
-        facing="front"
-        ref={cameraRef}
-      >
+  // 3. Permission granted → show camera
+  else {
+    screenContent = (
+      <CameraView style={styles.camera} facing="front" ref={cameraRef}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-          >
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Feather name="x" size={28} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Camera Prediction</Text>
@@ -144,6 +141,7 @@ const CameraPredictScreen = ({ navigation }) => {
               <>
                 <Text style={styles.predictionLabel}>Detected Sign</Text>
                 <Text style={styles.predictionLetter}>{prediction.letter}</Text>
+
                 <View style={styles.confidenceContainer}>
                   <View style={styles.confidenceDot} />
                   <Text style={styles.confidenceText}>
@@ -153,7 +151,7 @@ const CameraPredictScreen = ({ navigation }) => {
               </>
             ) : (
               <>
-                <Feather name="hand" size={40} color="#FFFFFF" style={styles.handIcon} />
+                <Feather name="move" size={40} color="#FFFFFF" style={styles.handIcon} />
                 <Text style={styles.waitingText}>Waiting for sign...</Text>
               </>
             )}
@@ -166,19 +164,27 @@ const CameraPredictScreen = ({ navigation }) => {
             <View style={styles.instructionDot} />
             <Text style={styles.instructionText}>Keep your hand steady</Text>
           </View>
+
           <View style={styles.instructionItem}>
             <View style={styles.instructionDot} />
             <Text style={styles.instructionText}>Ensure good lighting</Text>
           </View>
+
           <View style={styles.instructionItem}>
             <View style={styles.instructionDot} />
             <Text style={styles.instructionText}>Make clear gestures</Text>
           </View>
         </View>
       </CameraView>
-    </View>
-  );
+    );
+  }
+
+  // -------- SINGLE FINAL RETURN --------
+  return <View style={{ flex: 1 }}>{screenContent}</View>;
 };
+
+// export default CameraPredictScreen;
+
 
 const styles = StyleSheet.create({
   container: {

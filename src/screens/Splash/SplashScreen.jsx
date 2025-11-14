@@ -99,7 +99,7 @@ const SplashScreen = ({ navigation }) => {
       {/* Logo and title */}
       <Animated.View style={[styles.content, logoAnimatedStyle]}>
         <View style={styles.iconContainer}>
-          <Feather name="hand" size={80} color="#FFFFFF" />
+          <Feather name="move" size={80} color="#FFFFFF" />
         </View>
         
         <Text style={styles.title}>Sign Language</Text>
